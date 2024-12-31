@@ -12,6 +12,7 @@ class CreditCard:
             summ += number
         for i in range(1, len(card_number), 2):
             summ += int(card_number[i])
+        aux = summ
         return (10 - (summ % 10)) % 10
 
     @staticmethod

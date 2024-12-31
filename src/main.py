@@ -1,3 +1,4 @@
+import sqlite3
 import sys
 from credit_card import CreditCard
 
@@ -5,7 +6,18 @@ from credit_card import CreditCard
 class BankAccount:
 
     def __init__(self):
-        self.cards = {}
+
+        self.conn = sqlite3.connect("card.s3db")
+        self.cur = self.conn.cursor()
+
+        self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS card (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    number TEXT NOT NULL UNIQUE,
+                    pin TEXT NOT NULL,
+                    balance INTEGER DEFAULT 0
+                );
+                """)
 
     def main_menu(self):
         while True:
@@ -18,6 +30,7 @@ class BankAccount:
                 self.log_in()
             else:
                 print("\nBye!")
+                self.conn.close()
                 sys.exit()
 
 
@@ -27,12 +40,15 @@ class BankAccount:
             while choice not in ("1", "2", "0"):
                 choice = input("1. Balance\n2. Log out\n0. Exit\n")
             if choice == "1":
-                print(f"\nBalance: {self.cards[card_number]["Balance"]}\n")
+                self.cur.execute("SELECT balance FROM card WHERE number = ?", (card_number,))
+                balance = self.cur.fetchone()[0]
+                print(f"Balance: {balance}")
             elif choice == "2":
                 print("\nYou have successfully logged out!\n")
                 return
             else:
                 print("\nBye!")
+                self.conn.close()
                 sys.exit()
 
 
@@ -40,22 +56,26 @@ class BankAccount:
         card = CreditCard()
         card_number = card.gen_card_number()
         card_pin = card.gen_card_pin()
-        self.cards[card_number] = {"Card PIN": card_pin, "Balance": 0}
+        self.cur.execute("INSERT INTO card (number, pin) VALUES (?,?)", (card_number, card_pin))
+        self.conn.commit()
         print("\nYour card has been created")
         print(f"Your card number:\n{card_number}")
         print(f"Your card pin:\n{card_pin}\n")
 
 
     def log_in(self):
-        card_number = input("\nEnter your card number:\n")
-        card_pin = input("Enter your PIN:\n")
+        entered_number = input("\nEnter your card number:\n")
+        entered_pin = input("Enter your PIN:\n")
         try:
-            if self.cards[card_number]["Card PIN"] == card_pin:
+            self.cur.execute("SELECT pin FROM card WHERE number = ?", (entered_number,))
+            found_pin = self.cur.fetchone()[0]
+
+            if found_pin == entered_pin:
                 print("\nYou have successfully logged in!\n")
-                self.account_menu(card_number)
+                self.account_menu(entered_number)
             else:
                 print("Wrong card number or PIN\n")
-        except KeyError:
+        except TypeError:
             print("Wrong card number or PIN\n")
 
 
